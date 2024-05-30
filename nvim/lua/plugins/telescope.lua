@@ -1,25 +1,26 @@
+pcall(require('telescope').load_extension, 'fzf')
 require('telescope').setup {
   defaults = {
     preview = {
       mime_hook = function(filepath, bufnr, opts)
         local is_image = function(filepath)
-          local image_extensions = {'png','jpg'}   -- Supported image formats
-          local split_path = vim.split(filepath:lower(), '.', {plain=true})
+          local image_extensions = { 'png', 'jpg' } -- Supported image formats
+          local split_path = vim.split(filepath:lower(), '.', { plain = true })
           local extension = split_path[#split_path]
           return vim.tbl_contains(image_extensions, extension)
         end
         if is_image(filepath) then
           local term = vim.api.nvim_open_term(bufnr, {})
-          local function send_output(_, data, _ )
+          local function send_output(_, data, _)
             for _, d in ipairs(data) do
-              vim.api.nvim_chan_send(term, d..'\r\n')
+              vim.api.nvim_chan_send(term, d .. '\r\n')
             end
           end
           vim.fn.jobstart(
             {
-              'catimg', filepath  -- Terminal image viewer command
-            }, 
-            {on_stdout=send_output, stdout_buffered=true, pty=true})
+              'catimg', filepath -- Terminal image viewer command
+            },
+            { on_stdout = send_output, stdout_buffered = true, pty = true })
         else
           require("telescope.previewers.utils").set_preview_message(bufnr, opts.winid, "Binary cannot be previewed")
         end
@@ -41,15 +42,19 @@ require('telescope').setup {
       "--column",
       "--smart-case",
       "--trim",
-      "--no-ignore"
     },
-    pickers = {
-      find_files = {
-	"fd",
-	"--ignore",
+  },
+  pickers = {
+    find_files = {
+      find_command = {
+       "rg",
+        "--no-ignore-files",
+        "--no-ignore-global",
+        "--ignore-case",
+        "--files",
+        "-u",
       }
-    }
-
+    },
   },
 }
 local builtin = require('telescope.builtin')
@@ -58,23 +63,21 @@ vim.keymap.set('n', '<leader>pf', builtin.find_files, {})
 vim.keymap.set('n', '<leader>ph', builtin.buffers, {})
 vim.keymap.set('n', '<C-p>', builtin.git_files, {})
 vim.keymap.set('n', '<leader>ps', function()
-	builtin.grep_string({ search = vim.fn.input("Grep > ") })
+  builtin.grep_string({ search = vim.fn.input("Grep > ") })
 end)
-vim.keymap.set('n','<leader>pr',builtin.lsp_references, {})
+vim.keymap.set('n', '<leader>pr', builtin.lsp_references, {})
 
 
-vim.keymap.set('n','<leader>fw', builtin.live_grep)
+vim.keymap.set('n', '<leader>fw', builtin.live_grep)
 
 vim.keymap.set('n', '<leader>vh', builtin.help_tags, {})
 
 vim.keymap.set('n', '<leader>pp', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
 vim.keymap.set('n', '<leader>pw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
-vim.keymap.set('n', '<leader>sG', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
+vim.keymap.set('n','<leader>fg', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
 vim.keymap.set('n', '<leader>pr', builtin.resume, { desc = '[S]earch [R]esume' })
 vim.keymap.set('n', '<leader>.', function() builtin.find_files({ cwd = vim.fn.expand('%:p:h') }) end)
 vim.keymap.set('n', '<leader>pd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
-
-pcall(require('telescope').load_extension, 'fzf')
 
 local function find_git_root()
   -- Use the current buffer's path as the starting point for the git search
@@ -98,6 +101,15 @@ local function find_git_root()
   return git_root
 end
 
+local function search_from_git_root()
+  local git_root = find_git_root()
+  if git_root then
+    require('telescope.builtin').find_files {
+      search_dirs = { git_root },
+    }
+  end
+end
+
 -- Custom live_grep function to search in git root
 local function live_grep_git_root()
   local git_root = find_git_root()
@@ -107,6 +119,8 @@ local function live_grep_git_root()
     }
   end
 end
+
+vim.keymap.set('n', '<leader>pg', search_from_git_root, {});
 
 vim.api.nvim_create_user_command('LiveGrepGitRoot', live_grep_git_root, {})
 
@@ -128,4 +142,3 @@ local function telescope_live_grep_open_files()
   }
 end
 vim.keymap.set('n', '<leader>s/', telescope_live_grep_open_files, { desc = '[S]earch [/] in Open Files' })
-
