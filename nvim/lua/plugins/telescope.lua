@@ -77,7 +77,7 @@ vim.keymap.set('n', '<leader>pw', builtin.grep_string, { desc = '[S]earch curren
 vim.keymap.set('n','<leader>fg', ':LiveGrepGitRoot<cr>', { desc = '[S]earch by [G]rep on Git Root' })
 vim.keymap.set('n', '<leader>pr', builtin.resume, { desc = '[S]earch [R]esume' })
 vim.keymap.set('n', '<leader>.', function() builtin.find_files({ cwd = vim.fn.expand('%:p:h') }) end)
-vim.keymap.set('n', '<leader>pd', require('telescope.builtin').diagnostics, { desc = '[S]earch [D]iagnostics' })
+vim.keymap.set('n', '<leader>pd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
 
 local function find_git_root()
   -- Use the current buffer's path as the starting point for the git search
