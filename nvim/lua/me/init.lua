@@ -33,3 +33,15 @@ vim.opt.updatetime = 50
 vim.opt.colorcolumn = "200"
 vim.opt.hlsearch = true;
 vim.cmd('autocmd BufWritePre *.ts Format');
+vim.cmd('autocmd BufRead,BufNewFile *.script setfiletype lua');
+vim.filetype.add({
+    pattern = {
+        [".*%.blade%.php"] = "blade",
+        ["*.script"] = "lua",
+    },
+})
+
+if vim.loop.os_uname().sysname == 'Linux' then
+  vim.keymap.set({ 'n', 'v' }, '<leader>y', '"*y');
+  vim.keymap.set({ 'n', 'v' }, '<leader>Y', '"*Y');
+end
