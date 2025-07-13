@@ -186,7 +186,7 @@ require('lazy').setup({
   -- Fuzzy Finder (files, lsp, etc)
   {
     'nvim-telescope/telescope.nvim',
-    branch = '0.1.x',
+    branch = '0.1.8',
     dependencies = {
       'nvim-lua/plenary.nvim',
       -- Fuzzy Finder Algorithm which requires local dependencies to be built.
@@ -425,6 +425,7 @@ local on_attach = function(_, bufnr)
   end, { desc = 'Format current buffer with LSP' })
 end
 
+
 -- document existing key chains
 -- register which-key VISUAL mode
 -- required for visual <leader>hs (hunk stage) to work
@@ -473,16 +474,14 @@ mason_lspconfig.setup {
   ensure_installed = vim.tbl_keys(servers),
 }
 
-mason_lspconfig.setup_handlers {
-  function(server_name)
-    require('lspconfig')[server_name].setup {
-      capabilities = capabilities,
-      on_attach = on_attach,
-      settings = servers[server_name],
-      filetypes = (servers[server_name] or {}).filetypes,
-    }
-  end,
-}
+local lspconfig = require("lspconfig")
+
+for _, server_name in ipairs(mason_lspconfig.get_installed_servers()) do
+  lspconfig[server_name].setup({
+    on_attach = on_attach,
+    capabilities = capabilities,
+  })
+end
 
 -- [[ Configure nvim-cmp ]]
 -- See `:help cmp`
