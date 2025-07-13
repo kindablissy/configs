@@ -7,11 +7,6 @@ vim.keymap.set({ "n", "v" }, "<leader>nh", ":nohl<CR>")
 vim.keymap.set("n", "<leader>wc", "ve~")
 vim.api.nvim_set_keymap("n", "<space>e", "<cmd>lua vim.diagnostic.open_float()<CR>", {})
 
-vim.opt.tabstop = 2
-vim.opt.softtabstop = 0
-vim.opt.shiftwidth = 2
-vim.opt.expandtab = true
-
 vim.opt.smartindent = true
 vim.opt.wrap = false
 
@@ -75,8 +70,8 @@ vim.keymap.set(
 
 
 if vim.loop.os_uname().sysname == 'Linux' then
-  vim.keymap.set({ 'n', 'v' }, '<leader>y', '"*y');
-  vim.keymap.set({ 'n', 'v' }, '<leader>Y', '"*Y');
+  vim.keymap.set({ 'n', 'v' }, '<leader>y', '"+y');
+  vim.keymap.set({ 'n', 'v' }, '<leader>Y', '"+Y');
 end
 --vim.cmd("autocmd BufWritePre *.ts Format")
 
@@ -86,3 +81,8 @@ vim.filetype.add({
 		gui_script = "lua",
 	},
 })
+
+vim.opt.tabstop = 2
+vim.opt.softtabstop = 2
+vim.opt.shiftwidth = 2
+vim.opt.expandtab = true
