@@ -48,6 +48,10 @@ require('lazy').setup({
       'folke/neodev.nvim',
     },
   },
+  {
+    "pmizio/typescript-tools.nvim",
+    dependencies = { "nvim-lua/plenary.nvim", "neovim/nvim-lspconfig" },
+  },
 
   {
     -- Autocompletion
@@ -257,6 +261,13 @@ vim.o.smartcase = true
 -- Keep signcolumn on by default
 vim.wo.signcolumn = 'yes'
 
+-- Use Treesitter for code folds, but keep files open until you explicitly fold.
+vim.o.foldmethod = 'expr'
+vim.o.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
+vim.o.foldlevel = 99
+vim.o.foldlevelstart = 99
+vim.o.foldenable = true
+
 -- Decrease update time
 vim.o.updatetime = 250
 vim.o.timeoutlen = 300
@@ -374,6 +385,96 @@ vim.defer_fn(function()
 end, 0)
 
 -- [[ Configure LSP ]]
+local ts_source_definition_command = '_typescript.goToSourceDefinition'
+local ts_filetypes = {
+  javascript = true,
+  ['javascript.jsx'] = true,
+  javascriptreact = true,
+  typescript = true,
+  ['typescript.tsx'] = true,
+  typescriptreact = true,
+}
+
+local function client_position_encoding(client)
+  return client.offset_encoding or 'utf-16'
+end
+
+local function is_typescript_client(client)
+  return client.name == 'ts_ls'
+      or client.name == 'tsserver'
+      or client.name == 'typescript-tools'
+      or client.name == 'typescript-tools.nvim'
+      or client.name == 'vtsls'
+end
+
+local function get_typescript_clients(bufnr)
+  return vim.tbl_filter(is_typescript_client, vim.lsp.get_clients({ bufnr = bufnr }))
+end
+
+local function goto_locations(locations, position_encoding)
+  if #locations == 1 then
+    vim.lsp.util.show_document(locations[1], position_encoding, { reuse_win = true, focus = true })
+    return
+  end
+
+  vim.fn.setqflist({}, ' ', {
+    title = 'TypeScript source definitions',
+    items = vim.lsp.util.locations_to_items(locations, position_encoding),
+  })
+  vim.cmd('cfirst')
+  vim.cmd('copen')
+end
+
+local function goto_definition()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local filetype = vim.bo[bufnr].filetype
+
+  if ts_filetypes[filetype] and vim.fn.exists(':TSToolsGoToSourceDefinition') == 2 then
+    vim.cmd('TSToolsGoToSourceDefinition')
+    return
+  end
+
+  local clients = ts_filetypes[filetype] and get_typescript_clients(bufnr) or {}
+
+  if vim.tbl_isempty(clients) then
+    require('telescope.builtin').lsp_definitions()
+    return
+  end
+
+  local client_count = #clients
+  local responses = 0
+  local fallback_to_definition = vim.schedule_wrap(function()
+    require('telescope.builtin').lsp_definitions()
+  end)
+
+  local client = clients[1]
+  local position_encoding = client_position_encoding(client)
+  local params = vim.lsp.util.make_position_params(0, position_encoding)
+
+  for _, ts_client in ipairs(clients) do
+    ts_client.request('workspace/executeCommand', {
+      command = ts_source_definition_command,
+      arguments = { params.textDocument.uri, params.position },
+    }, function(err, result)
+      responses = responses + 1
+
+      if not err and result and result ~= vim.NIL then
+        local locations = vim.islist(result) and result or { result }
+        if not vim.tbl_isempty(locations) then
+          vim.schedule(function()
+            goto_locations(locations, client_position_encoding(ts_client))
+          end)
+          return
+        end
+      end
+
+      if responses == client_count then
+        fallback_to_definition()
+      end
+    end, bufnr)
+  end
+end
+
 --  This function gets run when an LSP connects to a particular buffer.
 local on_attach = function(_, bufnr)
   -- NOTE: Remember that lua is a real programming language, and as such it is possible
@@ -393,7 +494,7 @@ local on_attach = function(_, bufnr)
   nmap('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
   nmap('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
 
-  nmap('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+  nmap('gd', goto_definition, '[G]oto [D]efinition')
   nmap('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
   nmap('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
   nmap('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
@@ -412,10 +513,6 @@ local on_attach = function(_, bufnr)
     print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
   end, '[W]orkspace [L]ist Folders')
 
-  -- Create a command `:Format` local to the LSP buffer
-  vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
-    vim.lsp.buf.format()
-  end, { desc = 'Format current buffer with LSP' })
 end
 
 
@@ -467,13 +564,51 @@ mason_lspconfig.setup {
   ensure_installed = vim.tbl_keys(servers),
 }
 
+local typescript_tools_ok, typescript_tools = pcall(require, 'typescript-tools')
+if typescript_tools_ok then
+  typescript_tools.setup({
+    on_attach = on_attach,
+    capabilities = capabilities,
+    handlers = {},
+    settings = {
+      separate_diagnostic_server = true,
+      publish_diagnostic_on = "insert_leave",
+      expose_as_code_action = "all",
+      tsserver_path = nil,
+      tsserver_plugins = {},
+      tsserver_max_memory = "auto",
+      tsserver_format_options = {},
+      tsserver_file_preferences = {},
+      tsserver_locale = "en",
+      complete_function_calls = false,
+      include_completions_with_insert_text = true,
+      code_lens = "off",
+      disable_member_code_lens = true,
+      jsx_close_tag = {
+        enable = true,
+        filetypes = { "javascriptreact", "typescriptreact" },
+      },
+    },
+  })
+end
+
 local lspconfig = require("lspconfig")
+local skipped_servers = {
+  ts_ls = true,
+  tsserver = true,
+}
 
 for _, server_name in ipairs(mason_lspconfig.get_installed_servers()) do
+  if skipped_servers[server_name] then
+    goto continue
+  end
+
   lspconfig[server_name].setup({
     on_attach = on_attach,
     capabilities = capabilities,
   })
+
+  ::continue::
 end
 
 -- [[ Configure nvim-cmp ]]

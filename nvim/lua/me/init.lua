@@ -42,6 +42,37 @@ vim.filetype.add({
     },
 })
 
+
+-- for multi windows
+vim.keymap.set(
+  "n",
+  "<leader>h",
+  "<C-w><C-h>",
+  { desc = "Move focus to the left window" }
+)
+
+vim.keymap.set(
+  "n",
+  "<leader>l",
+  "<C-w><C-l>",
+  { desc = "Move focus to the right window" }
+)
+
+vim.keymap.set(
+  "n",
+  "<leader>j",
+  "<C-w><C-j>",
+  { desc = "Move focus to the down window" }
+)
+
+vim.keymap.set(
+  "n",
+  "<leader>k",
+  "<C-w><C-k>",
+  { desc = "Move focus to the up window" }
+)
+
+
 if vim.loop.os_uname().sysname == 'Linux' then
   vim.keymap.set({ 'n', 'v' }, '<leader>y', '"*y');
   vim.keymap.set({ 'n', 'v' }, '<leader>Y', '"*Y');
