@@ -30,17 +30,6 @@ require('lazy').setup({
   'tpope/vim-fugitive',
   'tpope/vim-rhubarb',
 
-  -- Detect tabstop and shiftwidth automatically
-  'tpope/vim-sleuth',
-  {
-    "folke/trouble.nvim",
-    dependencies = { "nvim-tree/nvim-web-devicons" },
-    opts = {
-      -- your configuration comes here
-      -- or leave it empty to use the default settings
-      -- refer to the configuration section below
-    }
-  },
   -- NOTE: This is where your plugins related to LSP can be installed.
   --  The configuration is done below. Search for lspconfig to find it below.
   {
@@ -213,6 +202,10 @@ require('lazy').setup({
   },
   {
     'sbdchd/neoformat',
+  },
+  {
+    'stevearc/conform.nvim',
+    opts = {},
   },
   {
     "ThePrimeagen/harpoon",

@@ -32,7 +32,7 @@ vim.opt.updatetime = 50
 
 vim.opt.colorcolumn = "200"
 vim.opt.hlsearch = true;
-vim.cmd('autocmd BufWritePre *.ts Format');
+--vim.cmd('autocmd BufWritePre *.ts Format');
 vim.cmd('autocmd BufRead,BufNewFile *.script setfiletype lua');
 vim.cmd('autocmd BufRead,BufNewFile *.gui_script setfiletype lua');
 vim.filetype.add({
