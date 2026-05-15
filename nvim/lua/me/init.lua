@@ -4,7 +4,7 @@ vim.keymap.set({ "n", "v" }, "<leader>y", '"*y')
 vim.keymap.set({ "n", "v" }, "<leader>Y", '"*Y')
 vim.keymap.set({ "n", "v" }, "<leader>lf", "$%")
 vim.keymap.set({ "n", "v" }, "<leader>nh", ":nohl<CR>")
-vim.keymap.set("n", "<leader>wc", "ve~v")
+vim.keymap.set("n", "<leader>wc", "ve~")
 vim.api.nvim_set_keymap("n", "<space>e", "<cmd>lua vim.diagnostic.open_float()<CR>", {})
 
 vim.opt.tabstop = 2
@@ -35,10 +35,11 @@ vim.opt.hlsearch = true;
 --vim.cmd('autocmd BufWritePre *.ts Format');
 vim.cmd('autocmd BufRead,BufNewFile *.script setfiletype lua');
 vim.cmd('autocmd BufRead,BufNewFile *.gui_script setfiletype lua');
+vim.cmd('autocmd BufRead,BufNewFile *.render_script setfiletype lua');
 vim.filetype.add({
     pattern = {
         [".*%.blade%.php"] = "blade",
-        ["*.script"] = "lua",
+        ["*.*_script"] = "lua",
     },
 })
 
@@ -78,11 +79,6 @@ if vim.loop.os_uname().sysname == 'Linux' then
   vim.keymap.set({ 'n', 'v' }, '<leader>Y', '"*Y');
 end
 --vim.cmd("autocmd BufWritePre *.ts Format")
-
----- support for defold
-function is_defold_folder()
-	local cwd = vim.fn.getcwd()
-end
 
 vim.filetype.add({
 	extension = {
