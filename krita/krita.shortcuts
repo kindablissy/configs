@@ -1,0 +1,9 @@
+[Shortcuts]
+KisToolSelectOutline=L
+KritaFill/KisToolFill=G
+KritaFill/KisToolGradient=none
+KritaSelected/KisToolColorSampler=I
+ZoomTool=Z
+decrease_opacity=none
+deselect=Ctrl+D
+make_brush_color_lighter=none
