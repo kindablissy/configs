@@ -49,10 +49,25 @@ require('lazy').setup({
     },
   },
   {
-    "pmizio/typescript-tools.nvim",
-    dependencies = { "nvim-lua/plenary.nvim", "neovim/nvim-lspconfig" },
+    "kdheepak/lazygit.nvim",
+    lazy = true,
+    cmd = {
+      "LazyGit",
+      "LazyGitConfig",
+      "LazyGitCurrentFile",
+      "LazyGitFilter",
+      "LazyGitFilterCurrentFile",
+    },
+    -- optional for floating window border decoration
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+    },
+    -- setting the keybinding for LazyGit with 'keys' is recommended in
+    -- order to load the plugin when the command is run for the first time
+    keys = {
+      { "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" }
+    }
   },
-
   {
     -- Autocompletion
     'hrsh7th/nvim-cmp',
@@ -68,6 +83,24 @@ require('lazy').setup({
       -- Adds a number of user-friendly snippets
       'rafamadriz/friendly-snippets',
     },
+  },
+  {
+    "rachartier/tiny-code-action.nvim",
+    dependencies = {
+      -- optional picker via telescope
+      { "nvim-telescope/telescope.nvim" },
+      -- optional picker via fzf-lua
+      { "ibhagwan/fzf-lua" },
+      -- .. or via snacks
+      {
+        "folke/snacks.nvim",
+        opts = {
+          terminal = {},
+        }
+      }
+    },
+    event = "LspAttach",
+    opts = {},
   },
 
   -- Useful plugin to show you pending keybinds.
@@ -316,7 +349,7 @@ vim.api.nvim_create_autocmd('TextYankPost', {
 vim.defer_fn(function()
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
-    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim', 'bash' },
+    ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'vimdoc', 'vim', 'bash' },
 
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
     auto_install = false,
@@ -400,11 +433,7 @@ local function client_position_encoding(client)
 end
 
 local function is_typescript_client(client)
-  return client.name == 'ts_ls'
-      or client.name == 'tsserver'
-      or client.name == 'typescript-tools'
-      or client.name == 'typescript-tools.nvim'
-      or client.name == 'vtsls'
+  return client.name == 'tsgo'
 end
 
 local function get_typescript_clients(bufnr)
@@ -428,11 +457,6 @@ end
 local function goto_definition()
   local bufnr = vim.api.nvim_get_current_buf()
   local filetype = vim.bo[bufnr].filetype
-
-  if ts_filetypes[filetype] and vim.fn.exists(':TSToolsGoToSourceDefinition') == 2 then
-    vim.cmd('TSToolsGoToSourceDefinition')
-    return
-  end
 
   local clients = ts_filetypes[filetype] and get_typescript_clients(bufnr) or {}
 
@@ -512,7 +536,6 @@ local on_attach = function(_, bufnr)
   nmap('<leader>wl', function()
     print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
   end, '[W]orkspace [L]ist Folders')
-
 end
 
 
@@ -537,7 +560,6 @@ local servers = {
   -- gopls = {},
   -- pyright = {},
   -- rust_analyzer = {},
-  -- tsserver = {},
   -- html = { filetypes = { 'html', 'twig', 'hbs'} },
 
   lua_ls = {
@@ -564,38 +586,80 @@ mason_lspconfig.setup {
   ensure_installed = vim.tbl_keys(servers),
 }
 
-local typescript_tools_ok, typescript_tools = pcall(require, 'typescript-tools')
-if typescript_tools_ok then
-  typescript_tools.setup({
-    on_attach = on_attach,
-    capabilities = capabilities,
-    handlers = {},
-    settings = {
-      separate_diagnostic_server = true,
-      publish_diagnostic_on = "insert_leave",
-      expose_as_code_action = "all",
-      tsserver_path = nil,
-      tsserver_plugins = {},
-      tsserver_max_memory = "auto",
-      tsserver_format_options = {},
-      tsserver_file_preferences = {},
-      tsserver_locale = "en",
-      complete_function_calls = false,
-      include_completions_with_insert_text = true,
-      code_lens = "off",
-      disable_member_code_lens = true,
-      jsx_close_tag = {
-        enable = true,
-        filetypes = { "javascriptreact", "typescriptreact" },
+local lspconfig = require("lspconfig")
+local lspconfig_configs = require("lspconfig.configs")
+local lspconfig_util = require("lspconfig.util")
+
+if not lspconfig_configs.tsgo then
+  lspconfig_configs.tsgo = {
+    default_config = {
+      cmd = { "tsgo", "--lsp", "--stdio" },
+      filetypes = {
+        "javascript",
+        "javascriptreact",
+        "typescript",
+        "typescriptreact",
+      },
+      on_new_config = function(new_config, root_dir)
+        if not root_dir then
+          return
+        end
+
+        local local_tsgo = table.concat({ root_dir, "node_modules", ".bin", "tsgo" }, "/")
+        if vim.fn.executable(local_tsgo) == 1 then
+          new_config.cmd[1] = local_tsgo
+        end
+      end,
+      root_dir = function(fname)
+        local project_root = lspconfig_util.root_pattern(
+          "package-lock.json",
+          "yarn.lock",
+          "pnpm-lock.yaml",
+          "bun.lockb",
+          "bun.lock",
+          ".git"
+        )(fname)
+        local deno_root = lspconfig_util.root_pattern("deno.json", "deno.jsonc")(fname)
+        local deno_lock_root = lspconfig_util.root_pattern("deno.lock")(fname)
+
+        if deno_lock_root and (not project_root or #deno_lock_root > #project_root) then
+          return nil
+        end
+
+        if deno_root and (not project_root or #deno_root >= #project_root) then
+          return nil
+        end
+
+        return project_root or vim.loop.cwd()
+      end,
+      settings = {
+        typescript = {
+          inlayHints = {
+            parameterNames = {
+              enabled = "literals",
+              suppressWhenArgumentMatchesName = true,
+            },
+            parameterTypes = { enabled = true },
+            variableTypes = { enabled = true },
+            propertyDeclarationTypes = { enabled = true },
+            functionLikeReturnTypes = { enabled = true },
+            enumMemberValues = { enabled = true },
+          },
+        },
       },
     },
-  })
+  }
 end
 
-local lspconfig = require("lspconfig")
+lspconfig.tsgo.setup({
+  on_attach = on_attach,
+  capabilities = capabilities,
+})
+
 local skipped_servers = {
   ts_ls = true,
   tsserver = true,
+  tsgo = true,
 }
 
 for _, server_name in ipairs(mason_lspconfig.get_installed_servers()) do
@@ -637,19 +701,19 @@ cmp.setup {
       behavior = cmp.ConfirmBehavior.Replace,
       select = true,
     },
-	    ['<Tab>'] = cmp.mapping(function(fallback)
-	      if luasnip.expand_or_locally_jumpable() then
-	        luasnip.expand_or_jump()
-	      else
-	        fallback()
-	      end
-	    end, { 'i', 's' }),
-	    ['<S-Tab>'] = cmp.mapping(function(fallback)
-	      if luasnip.locally_jumpable(-1) then
-	        luasnip.jump(-1)
-	      else
-	        fallback()
-	      end
+    ['<Tab>'] = cmp.mapping(function(fallback)
+      if luasnip.expand_or_locally_jumpable() then
+        luasnip.expand_or_jump()
+      else
+        fallback()
+      end
+    end, { 'i', 's' }),
+    ['<S-Tab>'] = cmp.mapping(function(fallback)
+      if luasnip.locally_jumpable(-1) then
+        luasnip.jump(-1)
+      else
+        fallback()
+      end
     end, { 'i', 's' }),
   },
   sources = {
@@ -658,6 +722,10 @@ cmp.setup {
     { name = 'path' },
   },
 }
+
+vim.keymap.set({ "n", "x" }, "<leader>ca", function()
+	require("tiny-code-action").code_action()
+end, { noremap = true, silent = true })
 
 require('plugins');
 require('me');

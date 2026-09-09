@@ -1,103 +1,129 @@
 pcall(require("telescope").load_extension, "fzf")
 require("telescope").setup({
-	defaults = {
-		preview = {
-			mime_hook = function(filepath, bufnr, opts)
-				local is_image = function(filepath)
-					local image_extensions = { "png", "jpg" } -- Supported image formats
-					local split_path = vim.split(filepath:lower(), ".", { plain = true })
-					local extension = split_path[#split_path]
-					return vim.tbl_contains(image_extensions, extension)
-				end
-				if is_image(filepath) then
-					local term = vim.api.nvim_open_term(bufnr, {})
-					local function send_output(_, data, _)
-						for _, d in ipairs(data) do
-							vim.api.nvim_chan_send(term, d .. "\r\n")
-						end
-					end
-					vim.fn.jobstart({
-						"catimg",
-						filepath, -- Terminal image viewer command
-					}, { on_stdout = send_output, stdout_buffered = true, pty = true })
-				else
-					require("telescope.previewers.utils").set_preview_message(
-						bufnr,
-						opts.winid,
-						"Binary cannot be previewed"
-					)
-				end
-			end,
-		},
-			mappings = {
-				i = {
-					["<C-u>"] = false,
-					["<C-d>"] = false,
-				},
-			},
-			vimgrep_arguments = {
-				"rg",
-				"--color=never",
-				"--no-heading",
-				"--with-filename",
-				"--line-number",
-				--"--files",
-				"--column",
-				"--smart-case",
-				"--trim",
-				"--hidden",
-				"--glob",
-				"!**/.git/**",
-			},
-		},
-		pickers = {
-			find_files = {
-				find_command = {
-					"rg",
-					"--hidden",
-					"--glob",
-					"!**/.git/**",
-					"--ignore-case",
-					"--files",
-				},
-		},
-	},
+  defaults = {
+    preview = {
+      mime_hook = function(filepath, bufnr, opts)
+        local is_image = function(filepath)
+          local image_extensions = { "png", "jpg" } -- Supported image formats
+          local split_path = vim.split(filepath:lower(), ".", { plain = true })
+          local extension = split_path[#split_path]
+          return vim.tbl_contains(image_extensions, extension)
+        end
+        if is_image(filepath) then
+          local term = vim.api.nvim_open_term(bufnr, {})
+          local function send_output(_, data, _)
+            for _, d in ipairs(data) do
+              vim.api.nvim_chan_send(term, d .. "\r\n")
+            end
+          end
+          vim.fn.jobstart({
+            "catimg",
+            filepath, -- Terminal image viewer command
+          }, { on_stdout = send_output, stdout_buffered = true, pty = true })
+        else
+          require("telescope.previewers.utils").set_preview_message(
+            bufnr,
+            opts.winid,
+            "Binary cannot be previewed"
+          )
+        end
+      end,
+    },
+    mappings = {
+      i = {
+        ["<C-u>"] = false,
+        ["<C-d>"] = false,
+      },
+    },
+    vimgrep_arguments = {
+      "rg",
+      "--color=never",
+      "--no-heading",
+      "--with-filename",
+      "--line-number",
+      --"--files",
+      "--column",
+      "--smart-case",
+      "--trim",
+      "--hidden",
+      "--glob",
+      "!**/.git/**",
+    },
+  },
+  pickers = {
+    find_files = {
+      find_command = {
+        "rg",
+        "--hidden",
+        "--glob",
+        "!**/.git/**",
+        "--ignore-case",
+        "--files",
+      },
+    },
+  },
 })
 local builtin = require("telescope.builtin")
 
 local no_ignore_vimgrep_arguments = {
-	"rg",
-	"--color=never",
-	"--no-heading",
-	"--with-filename",
-	"--line-number",
-	"--column",
-	"--smart-case",
-	"--trim",
-	"--no-ignore-files",
-	"--no-ignore-global",
-	"--hidden",
-	"--glob",
-	"!**/.git/**",
-	"--ignore-case",
-	"-u",
+  "rg",
+  "--color=never",
+  "--no-heading",
+  "--with-filename",
+  "--line-number",
+  "--column",
+  "--smart-case",
+  "--trim",
+  "--no-ignore-files",
+  "--no-ignore-global",
+  "--hidden",
+  "--glob",
+  "!**/.git/**",
+  "--ignore-case",
+  "-u",
 }
 
+local find_files_no_ignore_command = {
+  "rg",
+  "--color=never",
+  "--no-heading",
+  "--files",
+  "--line-number",
+  "--column",
+  "--smart-case",
+  "--trim",
+  "--no-ignore-files",
+  "--no-ignore-global",
+  "--hidden",
+  "--glob",
+  "!**/.git/**",
+  "--ignore-case",
+  "-u",
+}
+
+local function find_files_no_ignore()
+  require("telescope.builtin").find_files({
+    find_command = find_files_no_ignore_command,
+  })
+end
+
 vim.keymap.set("n", "<leader>pf", builtin.find_files, {})
+vim.keymap.set("n", "<leader>paf", builtin.find_files, {})
+vim.keymap.set("n", "<leader>paf", ":FindFileNoIgnore<cr>", { desc = "[S]earch Files by [G]rep" })
 vim.keymap.set("n", "<leader>ph", builtin.buffers, {})
 vim.keymap.set("n", "<C-p>", builtin.find_files, {})
 vim.keymap.set("n", "<leader>ps", function()
-	builtin.grep_string({ search = vim.fn.input("Grep > ") })
+  builtin.grep_string({ search = vim.fn.input("Grep > ") })
 end)
 vim.keymap.set("n", "<leader>pr", builtin.lsp_references, {})
 
 vim.keymap.set("n", "<leader>fw", builtin.live_grep)
 vim.keymap.set("n", "<leader>fc", function()
-	local args = vim.split(vim.fn.input("rg args > "), " ", { trimempty = true })
-	builtin.live_grep({
-		search_dirs = { "." },
-		additional_args = args .. "-u",
-	})
+  local args = vim.split(vim.fn.input("rg args > "), " ", { trimempty = true })
+  builtin.live_grep({
+    search_dirs = { "." },
+    additional_args = args .. "-u",
+  })
 end, { desc = "[F]ind with [C]ustom rg args" })
 
 vim.keymap.set("n", "<leader>vh", builtin.help_tags, {})
@@ -108,55 +134,55 @@ vim.keymap.set("n", "<leader>fg", ":LiveGrepGitRoot<cr>", { desc = "[S]earch by 
 vim.keymap.set("n", "<leader>faw", ":LiveGrepNoIgnore<cr>", { desc = "[S]earch by [G]rep on Git Root" })
 vim.keymap.set("n", "<leader>pr", builtin.resume, { desc = "[S]earch [R]esume" })
 vim.keymap.set("n", "<leader>.", function()
-	builtin.find_files({ cwd = vim.fn.expand("%:p:h") })
+  builtin.find_files({ cwd = vim.fn.expand("%:p:h") })
 end)
 vim.keymap.set("n", "<leader>pd", builtin.diagnostics, { desc = "[S]earch [D]iagnostics" })
 
 local function live_grep_no_ignore()
-	require("telescope.builtin").live_grep({
-		vimgrep_arguments = no_ignore_vimgrep_arguments,
-	})
+  require("telescope.builtin").live_grep({
+    vimgrep_arguments = no_ignore_vimgrep_arguments,
+  })
 end
 
 local function find_git_root()
-	-- Use the current buffer's path as the starting point for the git search
-	local current_file = vim.api.nvim_buf_get_name(0)
-	local current_dir
-	local cwd = vim.fn.getcwd()
-	-- If the buffer is not associated with a file, return nil
-	if current_file == "" then
-		current_dir = cwd
-	else
-		-- Extract the directory from the current file's path
-		current_dir = vim.fn.fnamemodify(current_file, ":h")
-	end
+  -- Use the current buffer's path as the starting point for the git search
+  local current_file = vim.api.nvim_buf_get_name(0)
+  local current_dir
+  local cwd = vim.fn.getcwd()
+  -- If the buffer is not associated with a file, return nil
+  if current_file == "" then
+    current_dir = cwd
+  else
+    -- Extract the directory from the current file's path
+    current_dir = vim.fn.fnamemodify(current_file, ":h")
+  end
 
-	-- Find the Git root directory from the current file's path
-	local git_root = vim.fn.systemlist("git -C " .. vim.fn.escape(current_dir, " ") .. " rev-parse --show-toplevel")[1]
-	if vim.v.shell_error ~= 0 then
-		print("Not a git repository. Searching on current working directory")
-		return cwd
-	end
-	return git_root
+  -- Find the Git root directory from the current file's path
+  local git_root = vim.fn.systemlist("git -C " .. vim.fn.escape(current_dir, " ") .. " rev-parse --show-toplevel")[1]
+  if vim.v.shell_error ~= 0 then
+    print("Not a git repository. Searching on current working directory")
+    return cwd
+  end
+  return git_root
 end
 
 local function search_from_git_root()
-	local git_root = find_git_root()
-	if git_root then
-		require("telescope.builtin").find_files({
-			search_dirs = { git_root },
-		})
-	end
+  local git_root = find_git_root()
+  if git_root then
+    require("telescope.builtin").find_files({
+      search_dirs = { git_root },
+    })
+  end
 end
 
 -- Custom live_grep function to search in git root
 local function live_grep_git_root()
-	local git_root = find_git_root()
-	if git_root then
-		require("telescope.builtin").live_grep({
-			search_dirs = { git_root },
-		})
-	end
+  local git_root = find_git_root()
+  if git_root then
+    require("telescope.builtin").live_grep({
+      search_dirs = { git_root },
+    })
+  end
 end
 
 vim.keymap.set("n", "<leader>pg", search_from_git_root, {})
@@ -164,22 +190,23 @@ vim.keymap.set("n", "<leader>pg", search_from_git_root, {})
 
 vim.api.nvim_create_user_command("LiveGrepGitRoot", live_grep_git_root, {})
 vim.api.nvim_create_user_command("LiveGrepNoIgnore", live_grep_no_ignore, {})
+vim.api.nvim_create_user_command("FindFileNoIgnore", find_files_no_ignore, {})
 
 -- See `:help telescope.builtin`
 vim.keymap.set("n", "<leader>?", require("telescope.builtin").oldfiles, { desc = "[?] Find recently opened files" })
 vim.keymap.set("n", "<leader><space>", require("telescope.builtin").buffers, { desc = "[ ] Find existing buffers" })
 vim.keymap.set("n", "<leader>/", function()
-	-- You can pass additional configuration to telescope to change theme, layout, etc.
-	require("telescope.builtin").current_buffer_fuzzy_find(require("telescope.themes").get_dropdown({
-		winblend = 10,
-		previewer = false,
-	}))
+  -- You can pass additional configuration to telescope to change theme, layout, etc.
+  require("telescope.builtin").current_buffer_fuzzy_find(require("telescope.themes").get_dropdown({
+    winblend = 10,
+    previewer = false,
+  }))
 end, { desc = "[/] Fuzzily search in current buffer" })
 
 local function telescope_live_grep_open_files()
-	require("telescope.builtin").live_grep({
-		grep_open_files = true,
-		prompt_title = "Live Grep in Open Files",
-	})
+  require("telescope.builtin").live_grep({
+    grep_open_files = true,
+    prompt_title = "Live Grep in Open Files",
+  })
 end
 vim.keymap.set("n", "<leader>s/", telescope_live_grep_open_files, { desc = "[S]earch [/] in Open Files" })
